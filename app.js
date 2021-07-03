@@ -197,6 +197,36 @@ app.post("/signOut", async (req, res) => {
     }
 })
 
+app.post("/update", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+
+        const user = body["user"]
+        const name = user["name"]
+
+        var dbUser = await getUserByEmail(email)
+
+        if (dbUser == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!dbUser["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        if (name)
+            dbUser["name"] = name
+
+        dbUser.save()
+
+        return res.status(200).send(dbUser)
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+
 app.post("/register", async (req, res) => {
     try {
         const body = req.body
