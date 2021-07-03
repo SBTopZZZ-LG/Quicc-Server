@@ -1,6 +1,6 @@
 // Third-party require
 const express = require('express')
-const CryptoJS = require('crypto-js');
+const CryptoJS = require('crypto-js')
 //
 
 // My packages
@@ -24,6 +24,10 @@ const PORT = process.env.PORT || 3000 // Default port is 3000
 //
 
 // Functions
+/**
+ * Generates a random String of length 30
+ * @returns A 30-char random string
+ */
 function generateUid() {
     const LENGTH = 30
     var result = '';
@@ -38,6 +42,10 @@ function generateUid() {
 
     return result;
 }
+/**
+ * Generates a random String of length 50
+ * @returns A 50-char random string
+ */
 function generateToken() {
     const LENGTH = 50
     var result = '';
@@ -52,20 +60,41 @@ function generateToken() {
 
     return result;
 }
+/**
+ * Encodes a string with CryptoJS/Base64 encoder
+ * @param {String} str The string to encode
+ * @returns Base64 encoded string
+ */
 function encode(str) {
     const encodedWord = CryptoJS.enc.Utf8.parse(str);
     const encoded = CryptoJS.enc.Base64.stringify(encodedWord);
     return encoded;
 }
 
+/**
+ * Finds and Returns User where the Uid matches
+ * @param {String} uid The uid to refer
+ * @returns User with the Uid
+ */
 async function getUserByUid(uid) {
     const result = await DatabaseUser.findOne({ uid: uid })
     return result
 }
+/**
+ * Finds and Returns User where the Email matches
+ * @param {String} uid The email to refer
+ * @returns User with the Email
+ */
 async function getUserByEmail(email) {
     const result = await DatabaseUser.findOne({ email: email })
     return result
 }
+/**
+ * Creates a new DatabaseUser schema object
+ * @param {String} email The email of the user
+ * @param {String} password The password of the user (unencoded)
+ * @returns The DatabaseUser schema object of the User
+ */
 function createUser(email, password) {
     var newUser = new DatabaseUser({
         uid: generateUid(),
@@ -76,6 +105,12 @@ function createUser(email, password) {
     return newUser
 }
 
+/**
+ * Finds and Returns List of Events where Uid is present in the members list
+ * @param {String} uid The uid to refer
+ * @param {Boolean} isActive true; if the event is not expired and exclusive; false; otherwise
+ * @returns List of Events
+ */
 async function getEventsWhereUidIsAMember(memberUid, isActive = false) {
     if (isActive) {
         const now = Number(new Date().getTime().toString())
@@ -85,6 +120,12 @@ async function getEventsWhereUidIsAMember(memberUid, isActive = false) {
     const events = await DatabaseEvent.find({ members: memberUid })
     return events
 }
+/**
+ * Finds and Returns List of Events of a specified host user
+ * @param {String} uid The uid to refer
+ * @param {Boolean} isActive true; if the event is not expired and exclusive; false; otherwise
+ * @returns List of Events
+ */
 async function getEventsByHostUid(hostUid, isActive = false) {
     if (isActive) {
         const now = Number(new Date().getTime().toString())
@@ -95,10 +136,24 @@ async function getEventsByHostUid(hostUid, isActive = false) {
     const events = await DatabaseEvent.find({ host: hostUid })
     return events
 }
+/**
+ * Finds and Returns Event where the Uid matches
+ * @param {String} uid The uid to refer
+ * @returns Event with the Uid
+ */
 async function getEventByUid(uid) {
     const result = await DatabaseEvent.findOne({ uid: uid })
     return result
 }
+/**
+ * Creates a new DatabaseEvent schema object
+ * @param {String} hostUid The Uid of the host user
+ * @param {String} title Title of the event
+ * @param {Array} members Invited members of the event
+ * @param {Number} startDate Start date of the event
+ * @param {Number} endDate Expiry date of the event
+ * @returns The DatabaseEvent schema object of the User
+ */
 function createEvent(hostUid, title, members, startDate, endDate) {
     var newEvent = new DatabaseEvent({
         uid: generateUid(),
@@ -113,6 +168,9 @@ function createEvent(hostUid, title, members, startDate, endDate) {
 }
 //
 
+/**
+ * Connect to Database and start the Express server
+ */
 databaseConnection.setupDatabaseConnection((err) => {
     if (err)
         return console.error(err)
@@ -125,6 +183,9 @@ databaseConnection.setupDatabaseConnection((err) => {
 })
 
 // User-related handles
+/**
+ * Endpoint to handle User sign-in
+ */
 app.post("/signIn", async (req, res) => {
     try {
         const headers = req.headers
@@ -169,6 +230,9 @@ app.post("/signIn", async (req, res) => {
         return res.status(500).send(e)
     }
 })
+/**
+ * Endpoint to handle User sign-out
+ */
 app.post("/signOut", async (req, res) => {
     try {
         const headers = req.headers
@@ -197,6 +261,9 @@ app.post("/signOut", async (req, res) => {
     }
 })
 
+/**
+ * Endpoint to handle User details updating
+ */
 app.post("/update", async (req, res) => {
     try {
         const headers = req.headers
@@ -227,6 +294,9 @@ app.post("/update", async (req, res) => {
     }
 })
 
+/**
+ * Endpoint to handle User registrations
+ */
 app.post("/register", async (req, res) => {
     try {
         const body = req.body
@@ -247,6 +317,9 @@ app.post("/register", async (req, res) => {
 //
 
 // Event-related handles
+/**
+ * Endpoint to handle Event creation
+ */
 app.post("/createEvent", async (req, res) => {
     try {
         const headers = req.headers
@@ -277,6 +350,9 @@ app.post("/createEvent", async (req, res) => {
         return res.status(500).send(e)
     }
 })
+/**
+ * Endpoint to handle Event deletion
+ */
 app.post("/deleteEvent", async (req, res) => {
     try {
         const headers = req.headers
@@ -304,6 +380,9 @@ app.post("/deleteEvent", async (req, res) => {
         return res.status(500).send(e)
     }
 })
+/**
+ * Endpoint to handle Event updating
+ */
 app.post("/updateEvent", async (req, res) => {
     try {
         const headers = req.headers
@@ -349,6 +428,9 @@ app.post("/updateEvent", async (req, res) => {
     }
 })
 
+/**
+ * Endpoint to handle and return Events where the user is invited (where his uid exists in the members list)
+ */
 app.get("/invitedEvents", async (req, res) => {
     try {
         const queries = req.query
@@ -363,6 +445,9 @@ app.get("/invitedEvents", async (req, res) => {
         return res.status(500).send(e)
     }
 })
+/**
+ * Endpoint to handle and return Events where the user is the host (where his uid matches with the host)
+ */
 app.get("/events", async (req, res) => {
     try {
         const queries = req.query
@@ -378,6 +463,9 @@ app.get("/events", async (req, res) => {
         return res.status(500).send(e)
     }
 })
+/**
+ * Endpoint to handle and return Event where the Uid matches
+ */
 app.get("/event", async (req, res) => {
     try {
         const queries = req.query
@@ -394,6 +482,9 @@ app.get("/event", async (req, res) => {
     }
 })
 
+/**
+ * Endpoint to handle Event joining (joined member uids are pushed to visitedMembers list)
+ */
 app.post("/joinEvent", async (req, res) => {
     try {
         const headers = req.headers

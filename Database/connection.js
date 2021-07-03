@@ -7,10 +7,7 @@ mongoose.set('useFindAndModify', false)
 
 function setupDatabaseConnection(callback) {
     mongoose.connect(DB_KEY, { useNewUrlParser: true, useUnifiedTopology: true }, (err) => {
-        if (err)
-            return callback(err)
-
-        callback()
+        callback(err)
     })
 }
 

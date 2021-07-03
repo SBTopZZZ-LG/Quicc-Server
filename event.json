@@ -1,9 +1,13 @@
 {
     "uid": "String",
-    "host": "",
+    "host": "String",
     "title": "String",
     "startDate": "Number",
     "endDate": "Number",
-    "members": [],
-    "visitedMembers": []
+    "members": [
+        "String"
+    ],
+    "visitedMembers": [
+        "String"
+    ]
 }
