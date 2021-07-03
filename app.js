@@ -76,11 +76,22 @@ function createUser(email, password) {
     return newUser
 }
 
-async function getEventsWhereUidIsAMember(memberUid) {
+async function getEventsWhereUidIsAMember(memberUid, isActive = false) {
+    if (isActive) {
+        const now = Number(new Date().getTime().toString())
+        const events = await DatabaseEvent.find({ members: memberUid }).where("startDate").lt(now.toString()).where("endDate").gt(now.toString())
+        return events
+    }
     const events = await DatabaseEvent.find({ members: memberUid })
     return events
 }
-async function getEventsByHostUid(hostUid) {
+async function getEventsByHostUid(hostUid, isActive = false) {
+    if (isActive) {
+        const now = Number(new Date().getTime().toString())
+        const events = await DatabaseEvent.find({ host: hostUid }).where("startDate").lt(now.toString()).where("endDate").gt(now.toString())
+        return events
+    }
+
     const events = await DatabaseEvent.find({ host: hostUid })
     return events
 }
@@ -88,11 +99,13 @@ async function getEventByUid(uid) {
     const result = await DatabaseEvent.findOne({ uid: uid })
     return result
 }
-function createEvent(hostUid, title, members) {
+function createEvent(hostUid, title, members, startDate, endDate) {
     var newEvent = new DatabaseEvent({
         uid: generateUid(),
         host: hostUid,
         title: title,
+        startDate: startDate,
+        endDate: endDate,
         members: members
     })
 
@@ -111,6 +124,7 @@ databaseConnection.setupDatabaseConnection((err) => {
     })
 })
 
+// User-related handles
 app.post("/signIn", async (req, res) => {
     try {
         const headers = req.headers
@@ -200,7 +214,9 @@ app.post("/register", async (req, res) => {
         return res.status(500).send(e)
     }
 })
+//
 
+// Event-related handles
 app.post("/createEvent", async (req, res) => {
     try {
         const headers = req.headers
@@ -212,6 +228,8 @@ app.post("/createEvent", async (req, res) => {
         const event = body["event"]
         const title = event["title"]
         const members = event["members"]
+        const startDate = Number(event["startDate"])
+        const endDate = Number(event["endDate"])
 
         const user = await getUserByEmail(email)
 
@@ -221,7 +239,7 @@ app.post("/createEvent", async (req, res) => {
         if (!user["loginTokens"].includes(loginToken))
             return res.status(403).send("invalidToken")
 
-        const newEvent = createEvent(user["uid"], title, members || [])
+        const newEvent = createEvent(user["uid"], title, members || [], startDate, endDate)
         newEvent.save()
 
         return res.status(200).send(newEvent)
@@ -268,6 +286,8 @@ app.post("/updateEvent", async (req, res) => {
         const event = body["event"]
         const title = event["title"]
         const members = event["members"]
+        const startDate = event["startDate"]
+        const endDate = event["endDate"]
 
         const user = await getUserByEmail(email)
 
@@ -286,6 +306,10 @@ app.post("/updateEvent", async (req, res) => {
             dbEvent["title"] = title
         if (members)
             dbEvent["members"] = members
+        if (startDate)
+            dbEvent["startDate"] = Number(startDate)
+        if (endDate)
+            dbEvent["endDate"] = Number(endDate)
 
         dbEvent.save()
 
@@ -299,11 +323,12 @@ app.get("/invitedEvents", async (req, res) => {
     try {
         const queries = req.query
         const uid = queries["id"]
+        const active = queries["active"] || false
 
         if (await getUserByUid(uid) == null)
             return res.status(404).send("userNotFound")
 
-        return res.status(200).send(await getEventsWhereUidIsAMember(uid))
+        return res.status(200).send(await getEventsWhereUidIsAMember(uid, active))
     } catch (e) {
         return res.status(500).send(e)
     }
@@ -312,12 +337,14 @@ app.get("/events", async (req, res) => {
     try {
         const queries = req.query
         const hostUid = queries["hostId"]
+        const active = queries["active"] || false
 
         if (await getUserByUid(hostUid) == null)
             return res.status(404).send("userNotFound")
 
-        return res.status(200).send(await getEventsByHostUid(hostUid))
+        return res.status(200).send(await getEventsByHostUid(hostUid, active))
     } catch (e) {
+        console.log(e)
         return res.status(500).send(e)
     }
 })
@@ -336,3 +363,46 @@ app.get("/event", async (req, res) => {
         return res.status(500).send(e)
     }
 })
+
+app.post("/joinEvent", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+        const key = body["key"]
+
+        const user = await getUserByEmail(email)
+
+        if (user == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        const userUid = key.split(':')[0]
+        const eventUid = key.split(':')[1]
+
+        if (userUid == user["uid"]) {
+            var event = await getEventByUid(eventUid)
+
+            if (event != null && event["uid"] == eventUid && event["members"].includes(userUid)) {
+                if (event["visitedMembers"].includes(userUid))
+                    return res.status(403).send("eventAlreadyVisited")
+
+                event["visitedMembers"].push(userUid)
+
+                event.save()
+
+                return res.status(200).send("eventVisited")
+            }
+        }
+
+        return res.status(403).send("invalidKey")
+    } catch (e) {
+        console.log(e)
+        return res.status(500).send(e)
+    }
+})
+//

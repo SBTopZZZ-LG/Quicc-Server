@@ -2,5 +2,8 @@
     "uid": "String",
     "host": "",
     "title": "String",
-    "members": []
+    "startDate": "Number",
+    "endDate": "Number",
+    "members": [],
+    "visitedMembers": []
 }

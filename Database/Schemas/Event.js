@@ -14,7 +14,19 @@ const schema = new Schema({
         type: String,
         required: true
     },
+    startDate: {
+        type: Number,
+        required: true
+    },
+    endDate: {
+        type: Number,
+        required: true
+    },
     members: {
+        type: Array,
+        default: []
+    },
+    visitedMembers: {
         type: Array,
         default: []
     }
