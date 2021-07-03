@@ -1,0 +1,9 @@
+{
+    "uid": "String",
+    "name": "String",
+    "email": "String",
+    "hash": "String",
+    "loginTokens": [
+        "token"
+    ]
+}
