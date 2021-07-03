@@ -9,6 +9,7 @@ const databaseConnection = require("./Database/connection")
 
 // Database Schemas
 const DatabaseUser = require("./Database/Schemas/User")
+const DatabaseEvent = require("./Database/Schemas/Event")
 //
 
 // Middleware
@@ -57,6 +58,10 @@ function encode(str) {
     return encoded;
 }
 
+async function getUserByUid(uid) {
+    const result = await DatabaseUser.findOne({ uid: uid })
+    return result
+}
 async function getUserByEmail(email) {
     const result = await DatabaseUser.findOne({ email: email })
     return result
@@ -69,6 +74,29 @@ function createUser(email, password) {
     })
 
     return newUser
+}
+
+async function getEventsWhereUidIsAMember(memberUid) {
+    const events = await DatabaseEvent.find({ members: memberUid })
+    return events
+}
+async function getEventsByHostUid(hostUid) {
+    const events = await DatabaseEvent.find({ host: hostUid })
+    return events
+}
+async function getEventByUid(uid) {
+    const result = await DatabaseEvent.findOne({ uid: uid })
+    return result
+}
+function createEvent(hostUid, title, members) {
+    var newEvent = new DatabaseEvent({
+        uid: generateUid(),
+        host: hostUid,
+        title: title,
+        members: members
+    })
+
+    return newEvent
 }
 //
 
@@ -168,6 +196,142 @@ app.post("/register", async (req, res) => {
         newUser.save()
 
         return res.status(200).send(newUser)
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+
+app.post("/createEvent", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+
+        const event = body["event"]
+        const title = event["title"]
+        const members = event["members"]
+
+        const user = await getUserByEmail(email)
+
+        if (user == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        const newEvent = createEvent(user["uid"], title, members || [])
+        newEvent.save()
+
+        return res.status(200).send(newEvent)
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+app.post("/deleteEvent", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+        const eventUid = body["eventUid"]
+
+        var user = await getUserByEmail(email)
+
+        if (user == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        if (await getEventByUid(eventUid) == null)
+            return res.status(404).send("eventNotFound")
+
+        await DatabaseEvent.findOneAndDelete({ uid: eventUid })
+
+        return res.status(200).send("eventDeleted")
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+app.post("/updateEvent", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+        const eventUid = body["eventUid"]
+
+        const event = body["event"]
+        const title = event["title"]
+        const members = event["members"]
+
+        const user = await getUserByEmail(email)
+
+        if (user == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        var dbEvent = await getEventByUid(eventUid)
+
+        if (dbEvent == null)
+            return res.status(404).send("eventNotFound")
+
+        if (title)
+            dbEvent["title"] = title
+        if (members)
+            dbEvent["members"] = members
+
+        dbEvent.save()
+
+        return res.status(200).send(dbEvent)
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+
+app.get("/invitedEvents", async (req, res) => {
+    try {
+        const queries = req.query
+        const uid = queries["id"]
+
+        if (await getUserByUid(uid) == null)
+            return res.status(404).send("userNotFound")
+
+        return res.status(200).send(await getEventsWhereUidIsAMember(uid))
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+app.get("/events", async (req, res) => {
+    try {
+        const queries = req.query
+        const hostUid = queries["hostId"]
+
+        if (await getUserByUid(hostUid) == null)
+            return res.status(404).send("userNotFound")
+
+        return res.status(200).send(await getEventsByHostUid(hostUid))
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+app.get("/event", async (req, res) => {
+    try {
+        const queries = req.query
+        const eventUid = queries["event"]
+
+        const event = await getEventByUid(eventUid)
+
+        if (event == null)
+            return res.status(404).send("eventNotFound")
+
+        return res.status(200).send(event)
     } catch (e) {
         return res.status(500).send(e)
     }
