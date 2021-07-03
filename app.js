@@ -53,8 +53,8 @@ function generateToken() {
     return result;
 }
 function encode(str) {
-    const encodedWord = CryptoJS.enc.Utf8.parse(str); // encodedWord Array object
-    const encoded = CryptoJS.enc.Base64.stringify(encodedWord); // string: 'NzUzMjI1NDE='
+    const encodedWord = CryptoJS.enc.Utf8.parse(str);
+    const encoded = CryptoJS.enc.Base64.stringify(encodedWord);
     return encoded;
 }
 
