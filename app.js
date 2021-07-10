@@ -175,13 +175,17 @@ function createEvent(hostUid, title, members, startDate, endDate) {
  * Connect to Database and start the Express server
  */
 databaseConnection.setupDatabaseConnection((err) => {
-    if (err)
-        return console.error(err)
+    if (err) {
+        console.error(err)
+        // Exit program
+        console.log("[Server] TERMINATING PROCESS DUE TO ERRORS")
+        process.exit()
+    }
 
-    console.log("Connected to mongo database")
+    console.log("[Server] CONNECTED TO MONGO DATABASE")
 
     app.listen(PORT, () => {
-        console.log("Express server running on port", PORT)
+        console.log("[Server] EXPRESS RUNNING ON PORT", PORT)
     })
 })
 
