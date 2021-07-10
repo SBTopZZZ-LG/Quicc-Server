@@ -223,7 +223,10 @@ app.post("/signIn", async (req, res) => {
             user["loginTokens"].push(loginToken)
             user.save()
 
-            return res.status(200).send(loginToken)
+            return res.status(200).send({
+                "loginToken": loginToken,
+                "user": user
+            })
         }
         return res.status(403).send("passwordMismatch")
     } catch (e) {
@@ -261,6 +264,37 @@ app.post("/signOut", async (req, res) => {
     }
 })
 
+/*****
+ * Endpoint to handle get User
+ */
+app.post("/user", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+        const targetEmail = body["targetEmail"]
+        const targetUserId = body["targetUserId"]
+
+        const user = await getUserByEmail(email)
+
+        if (user == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        var targetUser = targetEmail ? await getUserByEmail(targetEmail) : await getUserByUid(targetUserId)
+        delete targetUser["hash"]
+        delete targetUser["loginTokens"]
+
+        return res.status(200).send(targetUser)
+    } catch (e) {
+        console.log(e)
+        return res.status(500).send(e)
+    }
+})
 /**
  * Endpoint to handle User details updating
  */
@@ -435,7 +469,7 @@ app.get("/invitedEvents", async (req, res) => {
     try {
         const queries = req.query
         const uid = queries["id"]
-        const active = queries["active"] || false
+        const active = queries["active"] == null ? false : (queries["active"].toString() == "true" ? true : false)
 
         if (await getUserByUid(uid) == null)
             return res.status(404).send("userNotFound")
@@ -452,7 +486,7 @@ app.get("/events", async (req, res) => {
     try {
         const queries = req.query
         const hostUid = queries["hostId"]
-        const active = queries["active"] || false
+        const active = queries["active"] == null ? false : (queries["active"].toString() == "true" ? true : false)
 
         if (await getUserByUid(hostUid) == null)
             return res.status(404).send("userNotFound")
