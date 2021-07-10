@@ -417,10 +417,10 @@ app.post("/user/friends/remove", async (req, res) => {
             return res.status(403).send("invalidToken")
 
         user["friends"] = user["friends"].filter(item => {
-            return item["userUid"] != targetEmail["uid"]
+            return item["userUid"].toString() != targetUser["uid"].toString()
         })
         targetUser["friends"] = targetUser["friends"].filter(item => {
-            return item["userUid"] != user["uid"]
+            return item["userUid"].toString() != user["uid"].toString()
         })
 
         user.save()
@@ -461,7 +461,7 @@ app.post("/user/friends", async (req, res) => {
 app.post("/user/friends/one", async (req, res) => {
     try {
         const headers = req.headers
-        const loginToken = headers["loginToken"]
+        const loginToken = headers["authorization"]
 
         const body = req.body
         const email = body["email"]
