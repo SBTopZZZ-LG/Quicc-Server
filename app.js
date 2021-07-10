@@ -413,26 +413,48 @@ app.post("/user/friends/add", async (req, res) => {
 
         var responseText = "friendRequestCreated"
 
-        if (user["friends"].filter(item => { return item["userUid"] == targetUser["uid"] })[0]["status"] == RECEIVER
-            && targetUser["friends"].filter(item => { return item["userUid"] == user["uid"] })[0]["status"] == SENDER) {
-            // Accept friend request
+        var receiverFriendObject = user["friends"].filter(item => { return item["userUid"] == targetUser["uid"] })
+        var senderFriendObject = targetUser["friends"].filter(item => { return item["userUid"] == user["uid"] })
 
-            user["friends"] = user["friends"].filter(item => { return item["userUid"] != targetUser["uid"] })
-            targetUser["friends"] = targetUser["friends"].filter(item => { return item["userUid"] != user["uid"] })
+        if (receiverFriendObject.length > 0 && senderFriendObject.length > 0) {
+            if (receiverFriendObject[0]["status"] == RECEIVER
+                && senderFriendObject[0]["status"] == SENDER) {
+                // Accept friend request
 
-            const data1 = {
-                userUid: targetUser["uid"],
-                status: RECEIVER_ACCEPTED
+                user["friends"] = user["friends"].filter(item => { return item["userUid"] != targetUser["uid"] })
+                targetUser["friends"] = targetUser["friends"].filter(item => { return item["userUid"] != user["uid"] })
+
+                const data1 = {
+                    userUid: targetUser["uid"],
+                    status: RECEIVER_ACCEPTED
+                }
+                const data2 = {
+                    userUid: user["uid"],
+                    status: SENDER_ACCEPTED
+                }
+
+                user["friends"].push(data1)
+                targetUser["friends"].push(data2)
+
+                responseText = "friendRequestAccepted"
+            } else {
+                // Create friend request
+
+                const data1 = {
+                    userUid: targetUser["uid"],
+                    status: SENDER
+                }
+                const data2 = {
+                    userUid: user["uid"],
+                    status: RECEIVER
+                }
+
+                if (user["friends"].filter(item => { return item["userUid"] == targetUser["uid"] }).length == 0)
+                    user["friends"].push(data1)
+
+                if (targetUser["friends"].filter(item => { return item["userUid"] == user["uid"] }).length == 0)
+                    targetUser["friends"].push(data2)
             }
-            const data2 = {
-                userUid: user["uid"],
-                status: SENDER_ACCEPTED
-            }
-
-            user["friends"].push(data1)
-            targetUser["friends"].push(data2)
-
-            responseText = "friendRequestAccepted"
         } else {
             // Create friend request
 
@@ -457,6 +479,7 @@ app.post("/user/friends/add", async (req, res) => {
 
         return res.status(200).send(responseText)
     } catch (e) {
+        console.log(e)
         return res.status(500).send(e)
     }
 })
