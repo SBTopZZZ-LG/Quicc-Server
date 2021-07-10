@@ -18,6 +18,16 @@ const schema = new Schema({
         type: String,
         required: true
     },
+    friends: [{
+        userUid: {
+            type: String,
+            required: true
+        },
+        status: {
+            type: Integer,
+            default: 0
+        }
+    }],
     loginTokens: {
         type: Array,
         default: []

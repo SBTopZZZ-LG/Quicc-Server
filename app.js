@@ -21,6 +21,7 @@ require("dotenv").config()
 
 // Constants
 const PORT = process.env.PORT || 3000 // Default port is 3000
+const SENDER = 0, RECEIVER = 1, ACCEPTED = 2
 //
 
 // Functions
@@ -99,7 +100,9 @@ function createUser(email, password) {
     var newUser = new DatabaseUser({
         uid: generateUid(),
         email: email,
-        hash: encode(password)
+        hash: encode(password),
+        friends: [],
+        loginTokens: []
     })
 
     return newUser
@@ -264,7 +267,7 @@ app.post("/signOut", async (req, res) => {
     }
 })
 
-/*****
+/**
  * Endpoint to handle get User
  */
 app.post("/user", async (req, res) => {
@@ -344,6 +347,140 @@ app.post("/register", async (req, res) => {
         newUser.save()
 
         return res.status(200).send(newUser)
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+
+/**
+ * Endpoint to handle User adding new friends
+ */
+app.post("/user/friends/add", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+        const targetEmail = body["targetEmail"]
+
+        var user = await getUserByEmail(email)
+        var targetUser = await getUserByEmail(targetEmail)
+
+        if (user == null || targetUser == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        const data1 = {
+            userUid: targetUser["uid"],
+            status: SENDER
+        }
+        const data2 = {
+            userUid: user["uid"],
+            status: RECEIVER
+        }
+
+        if (!user["friends"].includes(data1))
+            user["friends"].push(data1)
+        if (!targetUser["friends"].includes(data2))
+            targetUser["friends"].push(data2)
+
+        user.save()
+        targetUser.save()
+
+        return res.status(200).send("friendRequestSent")
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+/**
+ * Endpoint to handle User removing friends
+ */
+app.post("/user/friends/remove", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+        const targetEmail = body["targetEmail"]
+
+        var user = await getUserByEmail(email)
+        var targetUser = await getUserByEmail(targetEmail)
+
+        if (user == null || targetUser == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        user["friends"] = user["friends"].filter(item => {
+            return item["userUid"] != targetEmail["uid"]
+        })
+        targetUser["friends"] = targetUser["friends"].filter(item => {
+            return item["userUid"] != user["uid"]
+        })
+
+        user.save()
+        targetUser.save()
+
+        return res.status(200).send("friendRemoved")
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+/**
+ * Endpoint to handle User viewing friends
+ */
+app.post("/user/friends", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+
+        const user = await getUserByEmail(email)
+
+        if (user == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        return res.status(200).send(user["friends"])
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+/**
+ * Endpoint to handle User viewing friend
+ */
+app.post("/user/friends/one", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["loginToken"]
+
+        const body = req.body
+        const email = body["email"]
+        const targetEmail = body["targetEmail"]
+
+        const user = await getUserByEmail(email)
+        const targetUser = await getUserByEmail(targetEmail)
+
+        if (user == null || targetUser == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        const result = user["friends"].filter(item => {
+            return item["userUid"] == targetUser["uid"]
+        })
+
+        return res.status(200).send(result.length > 0 ? result[0] : {})
     } catch (e) {
         return res.status(500).send(e)
     }

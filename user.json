@@ -3,6 +3,12 @@
     "name": "String",
     "email": "String",
     "hash": "String",
+    "friends": [
+        {
+            "userUid": "String",
+            "status": "Integer"
+        }
+    ],
     "loginTokens": [
         "token"
     ]
