@@ -97,8 +97,12 @@ async function searchUsersByEmail(name) {
     return results
 }
 async function searchUsersByNameAndEmail(name) {
-    const results = unionArrays(await DatabaseUser.find({ name: { $regex: name, $options: "i" } }, "uid name email"),
-        await DatabaseUser.find({ email: { $regex: name, $options: "i" } }), "uid name email") // [a-zA-Z]+
+    var results = await searchUsersByName(name);
+
+    (await searchUsersByEmail(name)).forEach(item => {
+        if (results.filter(_item => { return _item["uid"] == item["uid"] }).length == 0)
+            results.push(item)
+    })
 
     return results
 }
@@ -407,6 +411,8 @@ app.post("/user/friends/add", async (req, res) => {
         if (!user["loginTokens"].includes(loginToken))
             return res.status(403).send("invalidToken")
 
+        var responseText = "friendRequestCreated"
+
         if (user["friends"].filter(item => { return item["userUid"] == targetUser["uid"] })[0]["status"] == RECEIVER
             && targetUser["friends"].filter(item => { return item["userUid"] == user["uid"] })[0]["status"] == SENDER) {
             // Accept friend request
@@ -425,6 +431,8 @@ app.post("/user/friends/add", async (req, res) => {
 
             user["friends"].push(data1)
             targetUser["friends"].push(data2)
+
+            responseText = "friendRequestAccepted"
         } else {
             // Create friend request
 
@@ -447,7 +455,7 @@ app.post("/user/friends/add", async (req, res) => {
         user.save()
         targetUser.save()
 
-        return res.status(200).send("friendRequestCommitted")
+        return res.status(200).send(responseText)
     } catch (e) {
         return res.status(500).send(e)
     }
