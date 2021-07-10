@@ -87,18 +87,18 @@ function unionArrays(x, y) {
 }
 
 async function searchUsersByName(name) {
-    const results = await DatabaseUser.find({ name: { $regex: name, $options: "i" } }) // [a-zA-Z]+
+    const results = await DatabaseUser.find({ name: { $regex: name, $options: "i" } }, "uid name email")
 
     return results
 }
 async function searchUsersByEmail(name) {
-    const results = await DatabaseUser.find({ email: { $regex: name, $options: "i" } }) // [a-zA-Z]+
+    const results = await DatabaseUser.find({ email: { $regex: name, $options: "i" } }, "uid name email") // [a-zA-Z]+
 
     return results
 }
 async function searchUsersByNameAndEmail(name) {
-    const results = unionArrays(await DatabaseUser.find({ name: { $regex: name, $options: "i" } }),
-        await DatabaseUser.find({ email: { $regex: name, $options: "i" } })) // [a-zA-Z]+
+    const results = unionArrays(await DatabaseUser.find({ name: { $regex: name, $options: "i" } }, "uid name email"),
+        await DatabaseUser.find({ email: { $regex: name, $options: "i" } }), "uid name email") // [a-zA-Z]+
 
     return results
 }
