@@ -21,7 +21,7 @@ require("dotenv").config()
 
 // Constants
 const PORT = process.env.PORT || 3000 // Default port is 3000
-const SENDER = 0, RECEIVER = 1, ACCEPTED = 2
+const SENDER = 0, RECEIVER = 1, SENDER_ACCEPTED = 2, RECEIVER_ACCEPTED = 3
 //
 
 // Functions
@@ -72,6 +72,36 @@ function encode(str) {
     return encoded;
 }
 
+function unionArrays(x, y) {
+    var obj = {};
+    for (var i = x.length - 1; i >= 0; --i)
+        obj[x[i]] = x[i];
+    for (var i = y.length - 1; i >= 0; --i)
+        obj[y[i]] = y[i];
+    var res = []
+    for (var k in obj) {
+        if (obj.hasOwnProperty(k))  // <-- optional
+            res.push(obj[k]);
+    }
+    return res;
+}
+
+async function searchUsersByName(name) {
+    const results = await DatabaseUser.find({ name: { $regex: name, $options: "i" } }) // [a-zA-Z]+
+
+    return results
+}
+async function searchUsersByEmail(name) {
+    const results = await DatabaseUser.find({ email: { $regex: name, $options: "i" } }) // [a-zA-Z]+
+
+    return results
+}
+async function searchUsersByNameAndEmail(name) {
+    const results = unionArrays(await DatabaseUser.find({ name: { $regex: name, $options: "i" } }),
+        await DatabaseUser.find({ email: { $regex: name, $options: "i" } })) // [a-zA-Z]+
+
+    return results
+}
 /**
  * Finds and Returns User where the Uid matches
  * @param {String} uid The uid to refer
@@ -357,7 +387,7 @@ app.post("/register", async (req, res) => {
 })
 
 /**
- * Endpoint to handle User adding new friends
+ * Endpoint to handle User adding/accepting new friends
  */
 app.post("/user/friends/add", async (req, res) => {
     try {
@@ -377,24 +407,47 @@ app.post("/user/friends/add", async (req, res) => {
         if (!user["loginTokens"].includes(loginToken))
             return res.status(403).send("invalidToken")
 
-        const data1 = {
-            userUid: targetUser["uid"],
-            status: SENDER
-        }
-        const data2 = {
-            userUid: user["uid"],
-            status: RECEIVER
-        }
+        if (user["friends"].filter(item => { return item["userUid"] == targetUser["uid"] })[0]["status"] == RECEIVER
+            && targetUser["friends"].filter(item => { return item["userUid"] == user["uid"] })[0]["status"] == SENDER) {
+            // Accept friend request
 
-        if (!user["friends"].includes(data1))
+            user["friends"] = user["friends"].filter(item => { return item["userUid"] != targetUser["uid"] })
+            targetUser["friends"] = targetUser["friends"].filter(item => { return item["userUid"] != user["uid"] })
+
+            const data1 = {
+                userUid: targetUser["uid"],
+                status: RECEIVER_ACCEPTED
+            }
+            const data2 = {
+                userUid: user["uid"],
+                status: SENDER_ACCEPTED
+            }
+
             user["friends"].push(data1)
-        if (!targetUser["friends"].includes(data2))
             targetUser["friends"].push(data2)
+        } else {
+            // Create friend request
+
+            const data1 = {
+                userUid: targetUser["uid"],
+                status: SENDER
+            }
+            const data2 = {
+                userUid: user["uid"],
+                status: RECEIVER
+            }
+
+            if (user["friends"].filter(item => { return item["userUid"] == targetUser["uid"] }).length == 0)
+                user["friends"].push(data1)
+
+            if (targetUser["friends"].filter(item => { return item["userUid"] == user["uid"] }).length == 0)
+                targetUser["friends"].push(data2)
+        }
 
         user.save()
         targetUser.save()
 
-        return res.status(200).send("friendRequestSent")
+        return res.status(200).send("friendRequestCommitted")
     } catch (e) {
         return res.status(500).send(e)
     }
@@ -485,6 +538,82 @@ app.post("/user/friends/one", async (req, res) => {
         })
 
         return res.status(200).send(result.length > 0 ? result[0] : {})
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+
+/**
+ * Endpoint to handle User searches by Name
+ */
+app.post("/user/search/name", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+        const expression = body["expression"]
+
+        const user = await getUserByEmail(email)
+
+        if (user == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        return res.status(200).send(await searchUsersByName(expression))
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+/**
+ * Endpoint to handle User searches by Email
+ */
+app.post("/user/search/email", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+        const expression = body["expression"]
+
+        const user = await getUserByEmail(email)
+
+        if (user == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        return res.status(200).send(await searchUsersByEmail(expression))
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+/**
+ * Endpoint to handle User searches by Name or Email
+ */
+app.post("/user/search", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+        const expression = body["expression"]
+
+        const user = await getUserByEmail(email)
+
+        if (user == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        return res.status(200).send(await searchUsersByNameAndEmail(expression))
     } catch (e) {
         return res.status(500).send(e)
     }
