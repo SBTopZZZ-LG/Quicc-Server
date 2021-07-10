@@ -24,7 +24,7 @@ const schema = new Schema({
             required: true
         },
         status: {
-            type: Integer,
+            type: Number,
             default: 0
         }
     }],
