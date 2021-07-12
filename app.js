@@ -72,34 +72,35 @@ function encode(str) {
     return encoded;
 }
 
-function unionArrays(x, y) {
-    var obj = {};
-    for (var i = x.length - 1; i >= 0; --i)
-        obj[x[i]] = x[i];
-    for (var i = y.length - 1; i >= 0; --i)
-        obj[y[i]] = y[i];
-    var res = []
-    for (var k in obj) {
-        if (obj.hasOwnProperty(k))  // <-- optional
-            res.push(obj[k]);
-    }
-    return res;
-}
-
-async function searchUsersByName(name) {
-    const results = await DatabaseUser.find({ name: { $regex: name, $options: "i" } }, "uid name email")
+/**
+ * Searches all users where the name matches the provided regex
+ * @param {String} regex The regex to match
+ * @returns Array of users
+ */
+async function searchUsersByName(regex) {
+    const results = await DatabaseUser.find({ name: { $regex: regex, $options: "i" } }, "uid name email")
 
     return results
 }
-async function searchUsersByEmail(name) {
-    const results = await DatabaseUser.find({ email: { $regex: name, $options: "i" } }, "uid name email") // [a-zA-Z]+
+/**
+ * Searches all users where the email matches the provided regex
+ * @param {String} regex The regex to match
+ * @returns Array of users
+ */
+async function searchUsersByEmail(regex) {
+    const results = await DatabaseUser.find({ email: { $regex: regex, $options: "i" } }, "uid name email") // [a-zA-Z]+
 
     return results
 }
-async function searchUsersByNameAndEmail(name) {
-    var results = await searchUsersByName(name);
+/**
+ * Searches all users where the name or email matches the provided regex
+ * @param {String} regex The regex to match
+ * @returns Array of users
+ */
+async function searchUsersByNameOrEmail(regex) {
+    var results = await searchUsersByName(regex);
 
-    (await searchUsersByEmail(name)).forEach(item => {
+    (await searchUsersByEmail(regex)).forEach(item => {
         if (results.filter(_item => { return _item["uid"] == item["uid"] }).length == 0)
             results.push(item)
     })
@@ -644,7 +645,7 @@ app.post("/user/search", async (req, res) => {
         if (!user["loginTokens"].includes(loginToken))
             return res.status(403).send("invalidToken")
 
-        return res.status(200).send(await searchUsersByNameAndEmail(expression))
+        return res.status(200).send(await searchUsersByNameOrEmail(expression))
     } catch (e) {
         return res.status(500).send(e)
     }
@@ -812,6 +813,110 @@ app.get("/event", async (req, res) => {
             return res.status(404).send("eventNotFound")
 
         return res.status(200).send(event)
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+
+/**
+ * Endpoint to handle adding new members to an event
+ */
+app.post("/event/members/add", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+        const eventUid = body["eventUid"]
+        const targetEmail = body["targetEmail"]
+
+        const user = await getUserByEmail(email)
+        const targetUser = await getUserByEmail(targetEmail)
+
+        if (user == null || targetUser == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        var event = await getEventByUid(eventUid)
+
+        if (event == null)
+            return res.status(404).send("eventNotFound")
+
+        if (!event["members"].includes(targetUser["uid"]))
+            event["members"].push(targetUser["uid"])
+
+        event.save()
+
+        return res.status(200).send("userInvited")
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+/**
+ * Endpoint to handle removing new members from an event
+ */
+app.post("/event/members/remove", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+        const eventUid = body["eventUid"]
+        const targetEmail = body["targetEmail"]
+
+        const user = await getUserByEmail(email)
+        const targetUser = await getUserByEmail(targetEmail)
+
+        if (user == null || targetUser == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        var event = await getEventByUid(eventUid)
+
+        if (event == null)
+            return res.status(404).send("eventNotFound")
+
+        event["members"] = event["members"].filter(item => { return item != targetUser["uid"] })
+
+        event.save()
+
+        return res.status(200).send("userRemoved")
+    } catch (e) {
+        return res.status(500).send(e)
+    }
+})
+/**
+ * Endpoint to handle returning list of all members of an event
+ */
+app.post("/event/members", async (req, res) => {
+    try {
+        const headers = req.headers
+        const loginToken = headers["authorization"]
+
+        const body = req.body
+        const email = body["email"]
+        const eventUid = body["eventUid"]
+
+        const user = await getUserByEmail(email)
+
+        if (user == null)
+            return res.status(404).send("emailNotFound")
+
+        if (!user["loginTokens"].includes(loginToken))
+            return res.status(403).send("invalidToken")
+
+        const event = await getEventByUid(eventUid)
+
+        if (event == null)
+            return res.status(404).send("eventNotFound")
+
+        return res.status(200).send(event["members"])
     } catch (e) {
         return res.status(500).send(e)
     }

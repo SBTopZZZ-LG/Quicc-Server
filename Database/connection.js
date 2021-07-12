@@ -1,6 +1,7 @@
 const mongoose = require("mongoose")
+require("dotenv").config()
 
-const DB_KEY = "mongodb+srv://default:5NoKTr9nbAsUocbz@quicccluster1.fxvot.mongodb.net/quiccCluster1?retryWrites=true&w=majority"
+const DB_KEY = process.env.MONGODB_URL
 
 // To avoid Mongoose deprecation warnings
 mongoose.set('useFindAndModify', false)
