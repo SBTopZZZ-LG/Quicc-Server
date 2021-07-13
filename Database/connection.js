@@ -1,7 +1,7 @@
 const mongoose = require("mongoose")
 require("dotenv").config()
 
-const DB_KEY = process.env.MONGODB_URL
+const DB_KEY = "mongodb+srv://" + process.env.MONGODB_URL + "?retryWrites=true&w=majority"
 
 // To avoid Mongoose deprecation warnings
 mongoose.set('useFindAndModify', false)
